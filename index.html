@@ -61,17 +61,17 @@
         return "Uncertain";            //if it does not know, it will say uncertain
       }
     }
-
-    window.onload = function () {                                            
-      const fileInput = document.getElementById('fileInput');
-      const canvas = document.getElementById('myCanvas');
-      const context = canvas.getContext('2d');
-      const messageDisplayArea = document.getElementById('messageDisplayArea');
-      const resultDisplay = document.getElementById('resultDisplay');
+ 
+    window.onload = function () {                                            //runs following code after page loads
+      const fileInput = document.getElementById('fileInput');                //grabs file imput element to track image uploads
+      const canvas = document.getElementById('myCanvas');                    //gets <canvas> where image will be drawn
+      const context = canvas.getContext('2d');                               //gets 2D drawing for where image will be drawn
+      const messageDisplayArea = document.getElementById('messageDisplayArea'); //where messages like "File Not Supported" or "Image Selected" will be drawn
+      const resultDisplay = document.getElementById('resultDisplay');      //used to display result of classification
 
       fileInput.addEventListener('change', function () {
-        const file = fileInput.files[0];
-        const imageType = /image.*/;
+        const file = fileInput.files[0];                         //gets first selected file
+        const imageType = /image.*/;                            //checks if it is an image file
 
         if (file.type.match(imageType)) {
           const reader = new FileReader();
