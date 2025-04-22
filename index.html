@@ -82,9 +82,9 @@
 
               // Begin diagnostic analysis
               const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
-              const avgColor = getAverageColor(imageData);
-              const result = classifyColor(avgColor);
-              resultDisplay.innerHTML = "Diagnostic Result: " + result;
+              const avgColor = getAverageColor(imageData); // Collects data about average color of test tube liquid
+              const result = classifyColor(avgColor); // Interprets as pink/purple or yellow
+              resultDisplay.innerHTML = "Diagnostic Result: " + result; // Displays findings
             }
             img.src = reader.result;
             messageDisplayArea.innerHTML = "You picked an image!";      //after user displays image, this is what app says
@@ -97,7 +97,7 @@
     }
   </script>
 </head>
-
+//Below code is for formatting purposes
 <body>
   <div data-role="page">
     <div data-role="header">
