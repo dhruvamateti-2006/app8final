@@ -12,10 +12,10 @@
   <script>
     // This function adjusts the image drawing to fix iOS vertical squash issue
     function detectVerticalSquash(img) {
-      const ih = img.naturalHeight;
+      const ih = img.naturalHeight;         //gets natural height of the image
       const canvas = document.createElement('canvas');
-      canvas.width = 1;
-      canvas.height = ih;
+      canvas.width = 1;      //width of canvas
+      canvas.height = ih;     //height of canvas
       const ctx = canvas.getContext('2d');
       ctx.drawImage(img, 0, 0);
       const data = ctx.getImageData(0, 0, 1, ih).data;
@@ -23,7 +23,7 @@
       while (py > sy) {
         const alpha = data[(py - 1) * 4 + 3];
         if (alpha === 0) {
-          ey = py;
+          ey = py;  
         } else {
           sy = py;
         }
