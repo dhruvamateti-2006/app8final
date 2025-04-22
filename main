@@ -22,7 +22,7 @@
         <canvas id="preview"></canvas>
     </div>
     <div id="results"></div> 
-//hi//
+
 
 <script>
 // Project Log (Simplified version)
