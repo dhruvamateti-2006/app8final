@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>LAMP Diagnostic App</title>
+    <script async src="https://docs.opencv.org/master/opencv.js" type="text/javascript"></script>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+        #preview { border: 2px dashed #ccc; margin: 20px 0; }
+        .tube-result { padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .positive { background-color: #feffd2; border: 2px solid #ffeb3b; }
+        .negative { background-color: #ffe5f0; border: 2px solid #ff80ab; }
+        .indeterminate { background-color: #ffe0b2; border: 2px solid #ffb74d; }
+    </style>
+</head>
+<body>
+    <h1>Colorimetric LAMP Diagnostic App</h1>
+    
+    <!-- File Input -->
+    <input type="file" id="imageInput" accept="image/*">
+    <div id="previewContainer">
+        <canvas id="preview"></canvas>
+    </div>
+    <div id="results"></div>
+
+<script>
+// Project Log (Simplified version)
+let projectLog = [];
+function logEntry(title, description) {
+    projectLog.push({
+        date: new Date().toISOString(),
+        title,
+        description
+    });
+    console.log(`[LOG] ${title}: ${description}`);
+}
+
+// Initialize OpenCV
+let cvReady = false;
+cv.onRuntimeInitialized = () => {
+    cvReady = true;
+    logEntry("OpenCV Initialized", "OpenCV.js loaded successfully");
+};
+
+document.getElementById('imageInput').addEventListener('change', processImage);
+
+async function processImage(e) {
+    if (!cvReady) {
+        alert("OpenCV is still loading. Please wait...");
+        return;
+    }
+
+    const file = e.target.files[0];
+    const img = await loadImage(file);
+    const { preprocessed, original } = preprocessImage(img);
+    const tubes = detectTubes(preprocessed, original);
+    
+    displayResults(tubes);
+    logEntry("Image Processed", `Processed image with ${tubes.length} tubes detected`);
+}
+
+function loadImage(file) {
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const img = new Image();
+            img.onload = () => resolve(img);
+            img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+    });
+}
+
+function preprocessImage(img) {
+    // Convert to OpenCV Mat
+    const original = cv.imread(img);
+    const hsv = new cv.Mat();
+    cv.cvtColor(original, hsv, cv.COLOR_RGBA2RGB);
+    cv.cvtColor(hsv, hsv, cv.COLOR_RGB2HSV);
+    
+    // Blur for noise reduction
+    cv.GaussianBlur(hsv, hsv, new cv.Size(5, 5), 0);
+    
+    return { preprocessed: hsv, original };
+}
+
+function detectTubes(preprocessed, original) {
+    const gray = new cv.Mat();
+    cv.cvtColor(original, gray, cv.COLOR_RGBA2GRAY);
+    
+    // Thresholding
+    const thresh = new cv.Mat();
+    cv.threshold(gray, thresh, 150, 255, cv.THRESH_BINARY);
+    
+    // Find contours
+    const contours = new cv.MatVector();
+    const hierarchy = new cv.Mat();
+    cv.findContours(thresh, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
+    
+    // Process contours
+    const tubes = [];
+    for (let i = 0; i < contours.size(); i++) {
+        const contour = contours.get(i);
+        const area = cv.contourArea(contour);
+        
+        if (area > 1000) {
+            const rect = cv.boundingRect(contour);
+            const tubeMat = original.roi(rect);
+            
+            tubes.push({
+                rect,
+                mat: tubeMat,
+                colorAnalysis: analyzeTubeColor(tubeMat)
+            });
+        }
+    }
+    
+    // Cleanup
+    [gray, thresh, contours, hierarchy].forEach(m => m.delete());
+    return tubes;
+}
+
+function analyzeTubeColor(tubeMat) {
+    const hsv = new cv.Mat();
+    cv.cvtColor(tubeMat, hsv, cv.COLOR_RGBA2RGB);
+    cv.cvtColor(hsv, hsv, cv.COLOR_RGB2HSV);
+    
+    // Color ranges (Hue, Saturation, Value)
+    const yellowMask = new cv.Mat();
+    cv.inRange(hsv, new cv.Scalar(20, 100, 100), new cv.Scalar(40, 255, 255), yellowMask);
+    
+    const pinkMask = new cv.Mat();
+    cv.inRange(hsv, new cv.Scalar(140, 100, 100), new cv.Scalar(170, 255, 255), pinkMask);
+    
+    // Calculate percentages
+    const yellowPixels = cv.countNonZero(yellowMask);
+    const pinkPixels = cv.countNonZero(pinkMask);
+    const totalPixels = tubeMat.rows * tubeMat.cols;
+    
+    const yellowPercent = (yellowPixels / totalPixels) * 100;
+    const pinkPercent = (pinkPixels / totalPixels) * 100;
+    
+    // Determine result
+    let result, confidence;
+    if (yellowPercent > 10 && yellowPercent > pinkPercent * 2) {
+        result = 'Positive';
+        confidence = Math.min(100, yellowPercent * 2);
+    } else if (pinkPercent > 10 && pinkPercent > yellowPercent * 2) {
+        result = 'Negative';
+        confidence = Math.min(100, pinkPercent * 2);
+    } else {
+        result = 'Indeterminate';
+        confidence = Math.max(50 - Math.abs(yellowPercent - pinkPercent), 0);
+    }
+    
+    // Cleanup
+    [hsv, yellowMask, pinkMask].forEach(m => m.delete());
+    return { result, confidence, yellowPercent, pinkPercent };
+}
+
+function displayResults(tubes) {
+    const canvas = document.getElementById('preview');
+    const ctx = canvas.getContext('2d');
+    
+    // Draw original image with bounding boxes
+    cv.imshow(canvas, tubes[0].mat); // Show first tube for demo
+    
+    // Display results
+    const resultsDiv = document.getElementById('results');
+    resultsDiv.innerHTML = '';
+    
+    tubes.forEach((tube, i) => {
+        const div = document.createElement('div');
+        div.className = `tube-result ${tube.colorAnalysis.result.toLowerCase()}`;
+        div.innerHTML = `
+            <h3>Tube ${i+1}</h3>
+            <p>Result: ${tube.colorAnalysis.result}</p>
+            <p>Confidence: ${tube.colorAnalysis.confidence.toFixed(1)}%</p>
+            <p>Yellow: ${tube.colorAnalysis.yellowPercent.toFixed(1)}%</p>
+            <p>Pink: ${tube.colorAnalysis.pinkPercent.toFixed(1)}%</p>
+        `;
+        resultsDiv.appendChild(div);
+    });
+}
+
+// Initial project log entries
+logEntry("App Initialized", "Web-based LAMP diagnostic app started");
+</script>
+
+<!-- Project Documentation Section -->
+<section id="documentation">
+    <h2>Project Documentation</h2>
+    <div id="projectLog"></div>
+</section>
