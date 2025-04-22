@@ -87,11 +87,11 @@
               resultDisplay.innerHTML = "Diagnostic Result: " + result;
             }
             img.src = reader.result;
-            messageDisplayArea.innerHTML = "You picked an image!";
+            messageDisplayArea.innerHTML = "You picked an image!";      //after user displays image, this is what app says
           }
           reader.readAsDataURL(file);
         } else {
-          messageDisplayArea.innerHTML = "File not supported!";
+          messageDisplayArea.innerHTML = "File not supported!";          //if image does not display properly, this is what app will say
         }
       });
     }
@@ -104,7 +104,7 @@
       <h1>LAMP Diagnostic</h1>
     </div>
     <div data-role="content">
-      <h2>Select a LAMP image for analysis:</h2>
+      <h2>Select a LAMP image for analysis:</h2>                            <!--this and code underneath inputs images, from chatgpt-->
       <input type="file" id="fileInput" style="background-color: #FF6600;">
       <div id="messageDisplayArea"></div>
       <canvas id="myCanvas" width="600" height="500" style="border:1px solid #d3d3d3;"></canvas>
